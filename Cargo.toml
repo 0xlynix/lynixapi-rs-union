@@ -11,3 +11,6 @@ serde = {version = "1.0.160", features = ["derive"]}
 serde_json = "1.0.115"
 dotenv = "0.15.0"
 sqlx = {version = "0.7.4", features = ["postgres", "runtime-tokio", "chrono", "uuid", "macros"]}
+uuid = { version = "1.8.0", features = ["serde", "v4"]}
+futures = "0.3.28"
+chrono = {version = "0.4.28", features = ["serde"]}

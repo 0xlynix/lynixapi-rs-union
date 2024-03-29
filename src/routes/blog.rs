@@ -1,11 +1,9 @@
-use actix_web::{web, HttpResponse};
-use actix_web::{delete, get, post, put};
+use actix_web::{delete, get, post, put, web, HttpResponse};
 
-// Get all articles
-#[get("/blog")]
 pub async fn blog_get_articles() -> HttpResponse {
-    HttpResponse::Ok().body("Get all articles")
+    HttpResponse::Created().body("test")
 }
+
 
 // Get an article by ID
 #[get("/blog/{id}")]

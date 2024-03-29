@@ -16,6 +16,9 @@ Cargo.lock
 # Enviroment file
 .env
 
+# Dev Editors
+.idea/
+
 # Added by cargo
 
 /target
