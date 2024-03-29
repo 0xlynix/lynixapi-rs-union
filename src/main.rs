@@ -1,9 +1,10 @@
 extern crate dotenv;
 
-use actix_web::{get, http::StatusCode, post, web, App, HttpResponse, HttpServer, Responder};
-use dotenv::dotenv;
+use actix_web::{get, http::StatusCode, web, App, HttpResponse, HttpServer, Responder};
 use serde_json::json; // Add this line
 
+pub mod dtypes;
+pub mod db;
 pub mod routes;
 
 #[get("/")]
@@ -15,7 +16,7 @@ async fn hello() -> impl Responder {
     }))
 }
 
-#[get("/v1/current-station")]
+#[get("/current-station")]
 async fn current_station() -> impl Responder {
     HttpResponse::Ok().json(json!({
         "station": "union",
@@ -60,8 +61,6 @@ async fn main() -> std::io::Result<()> {
         )
     })
     .bind((server_address, server_port.parse::<u16>().unwrap()))?;
-
-    println!("⚠️  Warning: Database appears to be offline, state is now 'warn'!");
     println!("🚀 API server has started successfully!");
 
     server.run().await
