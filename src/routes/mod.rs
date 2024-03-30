@@ -6,6 +6,8 @@ pub mod boop;
 pub fn blog() -> impl HttpServiceFactory {
     (
         blog::blog_get_all_articles,
+        blog::blog_get_article_by_id,
+        blog::blog_get_article_by_slug,
     )
 }
 
