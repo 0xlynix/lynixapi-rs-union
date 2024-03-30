@@ -1,8 +1,9 @@
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 use uuid::Uuid;
 
-#[derive(Serialize, Deserialize, sqlx::FromRow)]
+#[derive(Serialize, Deserialize, sqlx::FromRow, ToSchema)]
 pub struct Article {
     /*  Identifiers */
     pub id: Uuid,

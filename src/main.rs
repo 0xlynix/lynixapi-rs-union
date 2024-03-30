@@ -1,8 +1,7 @@
 extern crate dotenv;
 
-use actix_web::{get, http::StatusCode, web::{self}, App, HttpResponse, HttpServer, Responder};
+use actix_web::{get, http::StatusCode, web, App, HttpResponse, HttpServer, Responder};
 use serde_json::json;
-
 pub mod db;
 pub mod dtypes;
 pub mod routes;
@@ -10,28 +9,11 @@ pub mod utils;
 pub mod middleware;
 
 #[get("/")]
-async fn hello() -> impl Responder {
+async fn root() -> impl Responder {
     HttpResponse::Ok().json(json!({
         "version": "lynixapi-v0.1.0-rs",
         "codename": "union",
         "status": "ok"
-    }))
-}
-
-#[get("/current-station")]
-async fn current_station() -> impl Responder {
-    HttpResponse::Ok().json(json!({
-        "station": "union",
-        "doors_left": true,
-        "notices": [{
-            "message": "Please mind the gap between the train and the platform",
-            "type": "warning"
-        },
-        {
-            "message": "You have found an easter egg on lynix.ca!",
-            "type": "info"
-        }
-        ]
     }))
 }
 
@@ -53,13 +35,28 @@ async fn main() -> std::io::Result<()> {
     println!("---------------------------------");
     println!("🐺 Starting server on {}:{}", server_address, server_port);
 
+    /*#[derive(OpenApi)]
+    #[openapi(
+        paths(
+            routes::blog(),
+            routes::boop(),
+        ),
+        components(
+            schemas{
+                Article,
+                BoopLog
+            }
+        )
+    )]
+    struct ApiDoc;
+
+    let openapi = ApiDoc::openapi();*/
+
     let server = HttpServer::new(move || {
         App::new()
-            .wrap(middleware::handle_cors()).service(hello)
+            .wrap(middleware::handle_cors()).service(root)
             .service(
                 web::scope("/v1")
-                    //.service(fetch_articles)
-                    .service(current_station)
                     .service(routes::blog())
                     .service(routes::boop())
             )
