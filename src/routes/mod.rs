@@ -6,7 +6,7 @@ pub mod boop;
 pub fn blog() -> impl HttpServiceFactory {
     (
         blog::blog_get_all_articles,
-        blog::blog_get_article_by_id,
+        // blog::blog_get_article_by_id, Removed for now as it causes the application to cause an exception when UUID is not found
         blog::blog_get_article_by_slug,
     )
 }

@@ -2,16 +2,20 @@ extern crate dotenv;
 
 use actix_web::{get, http::StatusCode, web, App, HttpResponse, HttpServer, Responder};
 use serde_json::json;
+
+use crate::websockets::{freakshock::freakshock_ws, freakysuit::freakysuit_ws};
+
 pub mod db;
 pub mod dtypes;
 pub mod routes;
 pub mod utils;
 pub mod middleware;
+pub mod websockets;
 
 #[get("/")]
 async fn root() -> impl Responder {
     HttpResponse::Ok().json(json!({
-        "version": "lynixapi-v0.1.0-rs",
+        "version": "lynixapi-v0.1.3-rs",
         "codename": "union",
         "status": "ok"
     }))
@@ -54,6 +58,8 @@ async fn main() -> std::io::Result<()> {
 
     let server = HttpServer::new(move || {
         App::new()
+            .route("/ws/freakshock", web::get().to(freakshock_ws))
+            .route("/ws/freakysuit", web::get().to(freakysuit_ws))
             .wrap(middleware::handle_cors()).service(root)
             .service(
                 web::scope("/v1")

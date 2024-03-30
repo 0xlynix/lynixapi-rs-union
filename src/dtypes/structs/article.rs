@@ -1,9 +1,8 @@
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
 use uuid::Uuid;
 
-#[derive(Serialize, Deserialize, sqlx::FromRow, ToSchema)]
+#[derive(Serialize, Deserialize, sqlx::FromRow)]
 pub struct Article {
     /*  Identifiers */
     pub id: Uuid,
@@ -27,7 +26,7 @@ pub struct Article {
     pub updated_at: Option<chrono::DateTime<Utc>>,
 }
 
-#[derive(Serialize, Deserialize, sqlx::FromRow, ToSchema)]
+#[derive(Serialize, Deserialize, sqlx::FromRow)]
 pub struct ArticleCard {
     pub id: Uuid,
     pub slug: String,
