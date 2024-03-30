@@ -1,10 +1,12 @@
 pub mod error_message;
 pub mod article;
+pub mod boop_log;
 
 use serde::{Deserialize, Serialize};
 
 pub use self::error_message::ErrorMessage;
 pub use self::article::Article;
+pub use self::boop_log::BoopLog;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Id {
