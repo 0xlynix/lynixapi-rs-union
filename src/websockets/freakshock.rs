@@ -1,12 +1,16 @@
+use std::collections::HashMap;
+
 use actix_web_actors::ws;
 use actix_web::{http::header, web, HttpRequest, HttpResponse};
 use actix::{Actor, Addr, StreamHandler};
 use actix::AsyncContext;
 
+
 struct FreakshockWs;
 
 impl Actor for FreakshockWs {
     type Context = ws::WebsocketContext<Self>;
+    //type Context = Context<Self>;
 
     fn started(&mut self, ctx: &mut Self::Context) {
         println!("[Freakshock WS] Connection established");

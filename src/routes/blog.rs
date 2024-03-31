@@ -29,7 +29,7 @@ pub async fn blog_delete_article() -> HttpResponse {
 async fn blog_get_all_articles() -> HttpResponse {
     match db::connect().await {
         Ok(pg) => {
-            let returned: Result<Vec<ArticleCard>, Error> = sqlx::query_as!(ArticleCard, "select id, slug, title, author, cover_image, content_desc, featured, published, is_furry, created_at, updated_at from article")
+            let returned: Result<Vec<ArticleCard>, Error> = sqlx::query_as!(ArticleCard, "select id, slug, title, author, cover_image, content_desc, featured, published, is_furry, created_at, updated_at from article where published = true order by created_at desc")
                 .fetch_all(&pg)
                 .await;
 

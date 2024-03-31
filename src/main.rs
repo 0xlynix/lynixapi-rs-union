@@ -1,6 +1,8 @@
 extern crate dotenv;
 
-use actix_web::{get, http::StatusCode, web, App, HttpResponse, HttpServer, Responder};
+use actix::Addr;
+use actix_web::{get, http::StatusCode, web, App, Error, HttpRequest, HttpResponse, HttpServer, Responder};
+use actix_web_actors::ws;
 use serde_json::json;
 
 use crate::websockets::{freakshock::freakshock_ws, freakysuit::freakysuit_ws};
@@ -24,6 +26,24 @@ async fn root() -> impl Responder {
 async fn not_found() -> HttpResponse {
     HttpResponse::build(StatusCode::NOT_FOUND)
         .json(json!({"error": "Not Found", "msg": "The requested resource was not found.", "success": false}))
+}
+
+async fn chat_route(
+    req: HttpRequest,
+    stream: web::Payload,
+    srv: web::Data<Addr<>>,
+) -> Result<HttpResponse, Error> {
+    ws::start(
+        session::WsChatSession {
+            id: 0,
+            hb: Instant::now(),
+            room: "main".to_owned(),
+            name: None,
+            addr: srv.get_ref().clone(),
+        },
+        &req,
+        stream,
+    )
 }
 
 #[actix_web::main]
