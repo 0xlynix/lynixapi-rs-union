@@ -28,24 +28,6 @@ async fn not_found() -> HttpResponse {
         .json(json!({"error": "Not Found", "msg": "The requested resource was not found.", "success": false}))
 }
 
-async fn chat_route(
-    req: HttpRequest,
-    stream: web::Payload,
-    srv: web::Data<Addr<>>,
-) -> Result<HttpResponse, Error> {
-    ws::start(
-        session::WsChatSession {
-            id: 0,
-            hb: Instant::now(),
-            room: "main".to_owned(),
-            name: None,
-            addr: srv.get_ref().clone(),
-        },
-        &req,
-        stream,
-    )
-}
-
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     dotenv::dotenv().ok();
