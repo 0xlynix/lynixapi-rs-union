@@ -1,8 +1,10 @@
 use axum::{
-    routing::get,
-    Json, Router,
+    http::StatusCode, response::IntoResponse, routing::get, Json, Router
 };
 use serde::Serialize;
+
+mod routes;
+mod dtypes;
 
 #[tokio::main]
 async fn main() {
@@ -24,11 +26,20 @@ async fn main() {
     // build our application with a route
     let app = Router::new()
         // `GET /` goes to `root`
-        .route("/", get(root));
+        .route("/", get(root))
+        .fallback(handler_404);
 
     // run our app with hyper, listening globally on port 3000
     let listener = tokio::net::TcpListener::bind(format!("{}:{}", server_address, server_port)).await.unwrap();
     axum::serve(listener, app).await.unwrap();
+}
+
+async fn handler_404() -> impl IntoResponse {
+    let error_message = ErrorMessage {
+        msg: "404 - Oops you got lost on the wrong station!".to_string(),
+        code: 404,
+    };
+    (StatusCode::NOT_FOUND, Json(error_message))
 }
 
 // basic handler that responds with a static string
@@ -45,4 +56,9 @@ struct RootVersion {
     version: String,
     codename: String,
     status: String,
+}
+#[derive(Serialize)]
+struct ErrorMessage {
+    msg: String,
+    code: u16,
 }
