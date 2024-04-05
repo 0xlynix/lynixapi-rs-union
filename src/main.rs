@@ -1,10 +1,20 @@
+use std::sync::Arc;
+
 use axum::{
-    http::StatusCode, response::IntoResponse, routing::get, Json, Router
+    error_handling::HandleErrorLayer, http::StatusCode, response::IntoResponse, routing::get, BoxError, Json, Router
 };
+use tower::{buffer::BufferLayer, limit::RateLimitLayer, ServiceBuilder};
+use std::time::Duration;
 use serde::Serialize;
+use sqlx::PgPool;
+
 
 mod routes;
 mod dtypes;
+
+pub struct AppState {
+    db: PgPool,
+}
 
 #[tokio::main]
 async fn main() {
@@ -23,11 +33,39 @@ async fn main() {
     println!("---------------------------------");
     println!("🐺 Starting server on {}:{}", server_address, server_port);
 
+    let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must set");
+    let pool = match PgPool::connect(&database_url).await
+    {
+        Ok(pool) => {
+            println!("✅ Connection to the database is successful!");
+            pool
+        }
+        Err(err) => {
+            println!("❌ Failed to connect to the database: {:?}", err);
+            std::process::exit(1);
+        }
+    };
+
+    let app_state = Arc::new(AppState { db: pool });
+
     // build our application with a route
     let app = Router::new()
         // `GET /` goes to `root`
         .route("/", get(root))
-        .fallback(handler_404);
+        .nest("/v1", routes::blog::routes(app_state.clone()))
+        .nest("/v1", routes::boop::routes(app_state.clone()))
+        .fallback(handler_404)
+        .layer(
+            ServiceBuilder::new()
+                .layer(HandleErrorLayer::new(|err: BoxError| async move {
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        format!("Unhandled error: {}", err),
+                    )
+                }))
+                .layer(BufferLayer::new(1024))
+                .layer(RateLimitLayer::new(5, Duration::from_secs(1))),
+        );
 
     // run our app with hyper, listening globally on port 3000
     let listener = tokio::net::TcpListener::bind(format!("{}:{}", server_address, server_port)).await.unwrap();
