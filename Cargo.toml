@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 # Tokio
-axum = "0.7.5"
+axum = { version = "0.7.5", features = ["ws"] }
 axum-macros = "0.4.1"
 tower-http = { version = "=0.5.2", features = ["cors"] }
 tower = { version = "0.4.13", features = ["buffer", "load", "limit"] } 

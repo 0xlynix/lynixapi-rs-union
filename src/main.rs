@@ -1,8 +1,13 @@
 use std::sync::Arc;
 
 use axum::{
-    error_handling::HandleErrorLayer, http::{Method, StatusCode}, response::IntoResponse, routing::get, BoxError, Json, Router
+    error_handling::HandleErrorLayer, 
+    extract::{
+        ws::{Message, WebSocket, WebSocketUpgrade},
+        State,
+    }, http::{Method, StatusCode}, response::IntoResponse, routing::get, BoxError, Json, Router
 };
+use tokio::sync::broadcast;
 use tower::{buffer::BufferLayer, limit::RateLimitLayer, ServiceBuilder};
 use tower_http::cors::{Any, CorsLayer};
 use std::time::Duration;
@@ -15,6 +20,7 @@ mod dtypes;
 
 pub struct AppState {
     db: PgPool,
+    tx: broadcast::Sender<String>,
 }
 
 #[tokio::main]
@@ -54,12 +60,15 @@ async fn main() {
         }
     };
 
-    let app_state = Arc::new(AppState { db: pool });
+    let (tx, _rx) = broadcast::channel(1000);
+
+    let app_state = Arc::new(AppState {db:pool, tx });
 
     // build our application with a route
     let app = Router::new()
         // `GET /` goes to `root`
         .route("/", get(root))
+        .nest("/", routes::websockets::routes(app_state.clone()))
         .nest("/v1", routes::blog::routes(app_state.clone()))
         .nest("/v1", routes::boop::routes(app_state.clone()))
         .fallback(handler_404)
