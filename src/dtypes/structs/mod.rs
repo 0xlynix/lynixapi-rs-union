@@ -4,7 +4,6 @@ pub mod boop_log;
 
 use serde::{Deserialize, Serialize};
 
-pub use self::error_message::ErrorMessage;
 pub use self::article::Article;
 pub use self::article::ArticleCard;
 pub use self::boop_log::BoopLog;

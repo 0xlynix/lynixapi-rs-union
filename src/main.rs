@@ -1,35 +1,15 @@
-extern crate dotenv;
+use axum::{
+    routing::get,
+    Json, Router,
+};
+use serde::Serialize;
 
-use actix::Addr;
-use actix_web::{get, http::StatusCode, web, App, Error, HttpRequest, HttpResponse, HttpServer, Responder};
-use actix_web_actors::ws;
-use serde_json::json;
+#[tokio::main]
+async fn main() {
+    // initialize tracing
+    tracing_subscriber::fmt::init();
 
-use crate::websockets::{freakshock::freakshock_ws, freakysuit::freakysuit_ws};
-
-pub mod db;
-pub mod dtypes;
-pub mod routes;
-pub mod utils;
-pub mod middleware;
-pub mod websockets;
-
-#[get("/")]
-async fn root() -> impl Responder {
-    HttpResponse::Ok().json(json!({
-        "version": "lynixapi-v0.1.3-rs",
-        "codename": "union",
-        "status": "ok"
-    }))
-}
-
-async fn not_found() -> HttpResponse {
-    HttpResponse::build(StatusCode::NOT_FOUND)
-        .json(json!({"error": "Not Found", "msg": "The requested resource was not found.", "success": false}))
-}
-
-#[actix_web::main]
-async fn main() -> std::io::Result<()> {
+    // load our environment variables
     dotenv::dotenv().ok();
 
     let server_address =
@@ -37,41 +17,32 @@ async fn main() -> std::io::Result<()> {
     let server_port = std::env::var("SERVER_PORT").unwrap_or_else(|_| String::from("8080"));
 
     // print Starting server on address:port
-    println!("Lynix API v0.1.0 - Union (Rust)");
+    println!("Lynix API v1.0.0 - Dufferin (Rust)");
     println!("---------------------------------");
     println!("🐺 Starting server on {}:{}", server_address, server_port);
 
-    /*#[derive(OpenApi)]
-    #[openapi(
-        paths(
-            routes::blog(),
-            routes::boop(),
-        ),
-        components(
-            schemas{
-                Article,
-                BoopLog
-            }
-        )
-    )]
-    struct ApiDoc;
+    // build our application with a route
+    let app = Router::new()
+        // `GET /` goes to `root`
+        .route("/", get(root));
 
-    let openapi = ApiDoc::openapi();*/
+    // run our app with hyper, listening globally on port 3000
+    let listener = tokio::net::TcpListener::bind(format!("{}:{}", server_address, server_port)).await.unwrap();
+    axum::serve(listener, app).await.unwrap();
+}
 
-    let server = HttpServer::new(move || {
-        App::new()
-            .route("/ws/freakshock", web::get().to(freakshock_ws))
-            .route("/ws/freakysuit", web::get().to(freakysuit_ws))
-            .wrap(middleware::handle_cors()).service(root)
-            .service(
-                web::scope("/v1")
-                    .service(routes::blog())
-                    .service(routes::boop())
-            )
-            .default_service(web::route().to(not_found))
+// basic handler that responds with a static string
+async fn root() -> Json<RootVersion> {
+    Json(RootVersion {
+        version: "lynixapi-v1.0.0-rs".to_string(),
+        status: "ok".to_string(),
+        codename: "dufferin".to_string(),
     })
-    .bind((server_address, server_port.parse::<u16>().unwrap()))?;
-    println!("🚀 API server has started successfully!");
+}
 
-    server.run().await
+#[derive(Serialize)]
+struct RootVersion {
+    version: String,
+    codename: String,
+    status: String,
 }

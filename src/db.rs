@@ -2,7 +2,7 @@ use actix_web::Result;
 use sqlx::PgPool;
 use std::env;
 
-use crate::dtypes::structs::ErrorMessage;
+use crate::dtypes::structs::error_message::ErrorMessage;
 
 pub async fn connect() -> Result<PgPool, ErrorMessage> {
     if let Err(e) = dotenv::dotenv() {
