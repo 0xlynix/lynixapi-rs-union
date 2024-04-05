@@ -1,105 +1,66 @@
-use actix_web::{delete, get, post, put, web, HttpResponse};
-use actix_web::http::StatusCode;
-use actix_web::web::Json;
-use sqlx::Error;
-use crate::db;
-use crate::dtypes::structs::{Article, ArticleCard};
-use crate::utils::handle_sql_error;
-use uuid::Uuid;
+use std::{convert::Infallible, sync::Arc};
 
-// Create an article
-#[post("/blog")]
-pub async fn blog_create_article() -> HttpResponse {
-    HttpResponse::Created().body("Create an article")
+use axum::{http::StatusCode, routing::get, Json, Router};
+use serde::Serialize;
+use serde_json::json;
+use sqlx::PgPool;
+
+use crate::{ dtypes::structs::{article::ArticleCard, Article}, AppState};
+
+#[derive(Serialize)]
+pub struct ErrorResponse {
+    msg: String,
+    code: i32
 }
 
-// Update an article
-#[put("/blog/{id}")]
-pub async fn blog_update_article() -> HttpResponse {
-    HttpResponse::Ok().body("Update an article")
+async fn fetch_all_blog_posts(db_pool: PgPool) -> (StatusCode, Json<Vec<ArticleCard>>) {
+    let blog_posts = sqlx::query_as!(ArticleCard, "SELECT id, slug, title, author, cover_image, content_desc, featured, published, is_furry, created_at, updated_at FROM article WHERE published = true ORDER BY created_at DESC")
+        .fetch_all(&db_pool)
+        .await 
+        .unwrap();
+
+    (StatusCode::OK, Json(blog_posts))
 }
 
-// Delete an article
-#[delete("/blog/{id}")]
-pub async fn blog_delete_article() -> HttpResponse {
-    HttpResponse::Ok().body("Delete an article")
-}
+async fn fetch_blog_post_by_slug(db_pool: PgPool, slug: String) -> Result<(StatusCode, Json<serde_json::Value>), Infallible> {
+    let blog_post = match sqlx::query_as!(Article, "SELECT * FROM article WHERE slug = $1", slug)
+        .fetch_one(&db_pool)
+        .await {
+            Ok(post) => post,
+            Err(e) => {
+                let error_response = ErrorResponse {
+                    msg: format!("Error: { }", e),
+                    code: 404
+                };
+                let error_response = match serde_json::to_value(&error_response) {
+                    Ok(val) => val,
+                    Err(_) => {
+                        return Ok((StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"msg": "Internal server error", "code": 500}))));
+                    }
+                };
 
-#[get("/blog")]
-async fn blog_get_all_articles() -> HttpResponse {
-    match db::connect().await {
-        Ok(pg) => {
-            let returned: Result<Vec<ArticleCard>, Error> = sqlx::query_as!(ArticleCard, "select id, slug, title, author, cover_image, content_desc, featured, published, is_furry, created_at, updated_at from article where published = true order by created_at desc")
-                .fetch_all(&pg)
-                .await;
-
-            match returned {
-                Ok(records) => HttpResponse::Ok()
-                    .status(StatusCode::OK)
-                    .content_type("application/json")
-                    .body(
-                        serde_json::to_string(&Json(records))
-                            .unwrap_or_else(|e| format!("JSON serialization error: {}", e)),
-                    ),
-                Err(e) => handle_sql_error(e),
+                return Ok((StatusCode::NOT_FOUND, Json(error_response)));
             }
+        };
+
+    let blog_post_json = match serde_json::to_value(&blog_post) {
+        Ok(val) => val,
+        Err(_) => {
+            return Ok((StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"msg": "Internal server error", "code": 500}))));
         }
-        Err(e) => HttpResponse::InternalServerError()
-            .status(StatusCode::INTERNAL_SERVER_ERROR)
-            .content_type("application/json")
-            .body(e.message),
-    }
+    };
+
+    Ok((StatusCode::OK, Json(blog_post_json)))
 }
 
-// Get an article by ID
-#[get("/blog/i/{id}")]
-pub async fn blog_get_article_by_id(id: web::Path<String>) -> HttpResponse {
-    match db::connect().await {
-        Ok(pg) => {
-            let returned: Result<Article, Error> = sqlx::query_as!(Article, "select * from article where id = $1", Uuid::parse_str(&id.into_inner()).unwrap())
-                .fetch_one(&pg)
-                .await;
-
-            match returned {
-                Ok(records) => HttpResponse::Ok()
-                    .status(StatusCode::OK)
-                    .content_type("application/json")
-                    .body(
-                        serde_json::to_string(&Json(records))
-                            .unwrap_or_else(|e| format!("JSON serialization error: {}", e)),
-                    ),
-                Err(e) => handle_sql_error(e),
-            }
-        }
-        Err(e) => HttpResponse::InternalServerError()
-            .status(StatusCode::INTERNAL_SERVER_ERROR)
-            .content_type("application/json")
-            .body(e.message),
-    }
-}
-
-#[get("/blog/{id}")]
-pub async fn blog_get_article_by_slug(id: web::Path<String>) -> HttpResponse {
-    match db::connect().await {
-        Ok(pg) => {
-            let returned: Result<Article, Error> = sqlx::query_as!(Article, "select * from article where slug = $1", id.into_inner())
-                .fetch_one(&pg)
-                .await;
-
-            match returned {
-                Ok(records) => HttpResponse::Ok()
-                    .status(StatusCode::OK)
-                    .content_type("application/json")
-                    .body(
-                        serde_json::to_string(&Json(records))
-                            .unwrap_or_else(|e| format!("JSON serialization error: {}", e)),
-                    ),
-                Err(e) => handle_sql_error(e),
-            }
-        }
-        Err(e) => HttpResponse::InternalServerError()
-            .status(StatusCode::INTERNAL_SERVER_ERROR)
-            .content_type("application/json")
-            .body(e.message),
-    }
+pub fn routes(app_state: Arc<AppState>) -> Router {
+    Router::new()
+        .route("/blog", get({
+            let db_pool = app_state.db.clone();
+            move || fetch_all_blog_posts(db_pool.clone())
+        }))
+        .route("/blog/:slug", get({
+            let db_pool = app_state.db.clone();
+            move |params: axum::extract::Path<String>| fetch_blog_post_by_slug(db_pool.clone(), params.0.clone())
+        }))
 }

@@ -1,35 +1,27 @@
-extern crate dotenv;
+use std::sync::Arc;
 
-use actix::Addr;
-use actix_web::{get, http::StatusCode, web, App, Error, HttpRequest, HttpResponse, HttpServer, Responder};
-use actix_web_actors::ws;
-use serde_json::json;
+use axum::{
+    error_handling::HandleErrorLayer, http::StatusCode, response::IntoResponse, routing::get, BoxError, Json, Router
+};
+use tower::{buffer::BufferLayer, limit::RateLimitLayer, ServiceBuilder};
+use std::time::Duration;
+use serde::Serialize;
+use sqlx::PgPool;
 
-use crate::websockets::{freakshock::freakshock_ws, freakysuit::freakysuit_ws};
 
-pub mod db;
-pub mod dtypes;
-pub mod routes;
-pub mod utils;
-pub mod middleware;
-pub mod websockets;
+mod routes;
+mod dtypes;
 
-#[get("/")]
-async fn root() -> impl Responder {
-    HttpResponse::Ok().json(json!({
-        "version": "lynixapi-v0.1.3-rs",
-        "codename": "union",
-        "status": "ok"
-    }))
+pub struct AppState {
+    db: PgPool,
 }
 
-async fn not_found() -> HttpResponse {
-    HttpResponse::build(StatusCode::NOT_FOUND)
-        .json(json!({"error": "Not Found", "msg": "The requested resource was not found.", "success": false}))
-}
+#[tokio::main]
+async fn main() {
+    // initialize tracing
+    tracing_subscriber::fmt::init();
 
-#[actix_web::main]
-async fn main() -> std::io::Result<()> {
+    // load our environment variables
     dotenv::dotenv().ok();
 
     let server_address =
@@ -37,41 +29,74 @@ async fn main() -> std::io::Result<()> {
     let server_port = std::env::var("SERVER_PORT").unwrap_or_else(|_| String::from("8080"));
 
     // print Starting server on address:port
-    println!("Lynix API v0.1.0 - Union (Rust)");
+    println!("Lynix API v1.0.0 - Dufferin (Rust)");
     println!("---------------------------------");
     println!("🐺 Starting server on {}:{}", server_address, server_port);
 
-    /*#[derive(OpenApi)]
-    #[openapi(
-        paths(
-            routes::blog(),
-            routes::boop(),
-        ),
-        components(
-            schemas{
-                Article,
-                BoopLog
-            }
-        )
-    )]
-    struct ApiDoc;
+    let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must set");
+    let pool = match PgPool::connect(&database_url).await
+    {
+        Ok(pool) => {
+            println!("✅ Connection to the database is successful!");
+            pool
+        }
+        Err(err) => {
+            println!("❌ Failed to connect to the database: {:?}", err);
+            std::process::exit(1);
+        }
+    };
 
-    let openapi = ApiDoc::openapi();*/
+    let app_state = Arc::new(AppState { db: pool });
 
-    let server = HttpServer::new(move || {
-        App::new()
-            .route("/ws/freakshock", web::get().to(freakshock_ws))
-            .route("/ws/freakysuit", web::get().to(freakysuit_ws))
-            .wrap(middleware::handle_cors()).service(root)
-            .service(
-                web::scope("/v1")
-                    .service(routes::blog())
-                    .service(routes::boop())
-            )
-            .default_service(web::route().to(not_found))
+    // build our application with a route
+    let app = Router::new()
+        // `GET /` goes to `root`
+        .route("/", get(root))
+        .nest("/v1", routes::blog::routes(app_state.clone()))
+        .nest("/v1", routes::boop::routes(app_state.clone()))
+        .fallback(handler_404)
+        .layer(
+            ServiceBuilder::new()
+                .layer(HandleErrorLayer::new(|err: BoxError| async move {
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        format!("Unhandled error: {}", err),
+                    )
+                }))
+                .layer(BufferLayer::new(1024))
+                .layer(RateLimitLayer::new(5, Duration::from_secs(1))),
+        );
+
+    // run our app with hyper, listening globally on port 3000
+    let listener = tokio::net::TcpListener::bind(format!("{}:{}", server_address, server_port)).await.unwrap();
+    axum::serve(listener, app).await.unwrap();
+}
+
+async fn handler_404() -> impl IntoResponse {
+    let error_message = ErrorMessage {
+        msg: "404 - Oops seems like you've got lost in Downtown Toronto!".to_string(),
+        code: 404,
+    };
+    (StatusCode::NOT_FOUND, Json(error_message))
+}
+
+// basic handler that responds with a static string
+async fn root() -> Json<RootVersion> {
+    Json(RootVersion {
+        version: "lynixapi-v1.0.0-rs".to_string(),
+        status: "ok".to_string(),
+        codename: "dufferin".to_string(),
     })
-    .bind((server_address, server_port.parse::<u16>().unwrap()))?;
-    println!("🚀 API server has started successfully!");
+}
 
-    server.run().await
+#[derive(Serialize)]
+struct RootVersion {
+    version: String,
+    codename: String,
+    status: String,
+}
+#[derive(Serialize)]
+struct ErrorMessage {
+    msg: String,
+    code: u16,
 }
