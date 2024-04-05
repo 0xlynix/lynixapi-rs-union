@@ -36,7 +36,7 @@ async fn main() {
 
 async fn handler_404() -> impl IntoResponse {
     let error_message = ErrorMessage {
-        msg: "404 - Oops you got lost on the wrong station!".to_string(),
+        msg: "404 - Oops seems like you've got lost in Downtown Toronto!".to_string(),
         code: 404,
     };
     (StatusCode::NOT_FOUND, Json(error_message))

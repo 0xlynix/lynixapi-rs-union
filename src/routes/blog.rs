@@ -1,25 +1,17 @@
-use axum::{routing::get, Json, Router};
-use sqlx::{PgPool, FromRow};
-use serde::Serialize;
+use axum::{http::StatusCode, response::IntoResponse, routing::get, Json, Router};
+use sqlx::PgPool;
 
 use crate::dtypes::structs::Article;
 
-#[derive(Serialize, FromRow)]
-struct BlogPost {
-    id: i32,
-    title: String,
-    content: String,
-    // Add other fields as needed
-}
-
-async fn fetch_all_blog_posts(db_pool: PgPool) -> Result<Json<Vec<Article>>, sqlx::Error> {
+async fn fetch_all_blog_posts(db_pool: PgPool) ->  Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     let blog_posts = sqlx::query_as!(Article, "SELECT * FROM article WHERE published = true ORDER BY created_at DESC")
         .fetch_all(&db_pool)
-        .await?;
+        .await;
 
-    Ok(Json(blog_posts))
+    Ok((StatusCode, Json(blog_posts)))
 }
 
-pub fn routes(db_pool: PgPool) -> Router {
+pub fn routes() -> Router {
     Router::new()
+        .route("/blog", get(fetch_all_blog_posts));
 }
