@@ -1,9 +1,10 @@
 use std::sync::Arc;
 
 use axum::{
-    error_handling::HandleErrorLayer, http::StatusCode, response::IntoResponse, routing::get, BoxError, Json, Router
+    error_handling::HandleErrorLayer, http::{Method, StatusCode}, response::IntoResponse, routing::get, BoxError, Json, Router
 };
 use tower::{buffer::BufferLayer, limit::RateLimitLayer, ServiceBuilder};
+use tower_http::cors::{Any, CorsLayer};
 use std::time::Duration;
 use serde::Serialize;
 use sqlx::PgPool;
@@ -27,6 +28,13 @@ async fn main() {
     let server_address =
         std::env::var("SERVER_ADDRESS").unwrap_or_else(|_| String::from("127.0.0.1"));
     let server_port = std::env::var("SERVER_PORT").unwrap_or_else(|_| String::from("8080"));
+
+    // Cors
+    let cors = CorsLayer::new()
+    // allow `GET` and `POST` when accessing the resource
+    .allow_methods([Method::GET, Method::POST])
+    // allow requests from any origin
+    .allow_origin(Any);
 
     // print Starting server on address:port
     println!("Lynix API v1.0.0 - Dufferin (Rust)");
@@ -65,7 +73,7 @@ async fn main() {
                 }))
                 .layer(BufferLayer::new(1024))
                 .layer(RateLimitLayer::new(5, Duration::from_secs(1))),
-        );
+        ).layer(cors);
 
     // run our app with hyper, listening globally on port 3000
     let listener = tokio::net::TcpListener::bind(format!("{}:{}", server_address, server_port)).await.unwrap();
