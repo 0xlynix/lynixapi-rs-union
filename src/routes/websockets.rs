@@ -27,17 +27,12 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
     let (mut sender, mut receiver) = stream.split();
 
     let mut rx = state.tx.subscribe();
-
-    //let msg = format!("Client Connected");
-    //let _ = state.tx.send(msg);
-
     let tx = state.tx.clone();
 
     // Spawn a task that takes messages from the websocket, prepends the user
     // name, and sends them to all broadcast subscribers.
     let mut recv_task = tokio::spawn(async move {
         while let Some(Ok(Message::Text(text))) = receiver.next().await {
-            // Add username before message.
             let _ = tx.send(format!("{text}"));
         }
     });
