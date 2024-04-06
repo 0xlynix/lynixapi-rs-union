@@ -44,6 +44,11 @@ pub fn routes(app_state: Arc<AppState>) -> Router {
             post(logout_handler)
                 .route_layer(middleware::from_fn_with_state(app_state.clone(), auth)),
         )
+        .route(
+            "/change-password",
+            post(change_password_handler)
+                .route_layer(middleware::from_fn_with_state(app_state.clone(), auth)),
+        )
         .with_state(app_state)
 }
 
@@ -81,7 +86,7 @@ pub async fn login_user_handler(
     .ok_or_else(|| {
         let error_response = serde_json::json!({
             "status": "fail",
-            "message": "Invalid email or password",
+            "message": "Invalid credentials",
         });
         (StatusCode::BAD_REQUEST, Json(error_response))
     })?;
@@ -206,7 +211,7 @@ pub async fn refresh_access_token_handler(
         .map_err(|e| {
             let error_response = serde_json::json!({
                 "status": "error",
-                "message": format!("Redis error: {}", e),
+                "message": format!("Dragonfly error: {}", e),
             });
             (StatusCode::INTERNAL_SERVER_ERROR, Json(error_response))
         })?;
@@ -288,6 +293,20 @@ pub async fn refresh_access_token_handler(
 
     response.headers_mut().extend(headers);
     Ok(response)
+}
+
+pub async fn change_password_handler(
+    Extension(_auth_guard): Extension<JWTAuthMiddleware>,
+    State(_data): State<Arc<AppState>>,
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    let message = "Could not change password";
+
+    let error_response = serde_json::json!({
+        "status": "error",
+        "message": format!("Fox Auth Error: {}", message),
+    });
+    
+    Ok(Json(error_response))
 }
 
 pub async fn logout_handler(
