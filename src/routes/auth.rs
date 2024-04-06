@@ -39,7 +39,11 @@ pub fn routes(app_state: Arc<AppState>) -> Router {
         //.route("/register", post(register_user_handler)) : Disable registeration for now
         .route("/login", post(login_user_handler))
         .route("/refresh", get(refresh_access_token_handler))
-        .route("/logout", post(logout_handler))
+        .route(
+            "/logout",
+            post(logout_handler)
+                .route_layer(middleware::from_fn_with_state(app_state.clone(), auth)),
+        )
         .with_state(app_state)
 }
 
