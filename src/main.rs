@@ -1,15 +1,11 @@
 use std::sync::Arc;
 
 use axum::{
-    error_handling::HandleErrorLayer, 
-    extract::{
-        ws::{Message, WebSocket, WebSocketUpgrade},
-        State,
-    }, http::{header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE}, HeaderValue, Method, StatusCode}, response::IntoResponse, routing::get, BoxError, Json, Router
+    error_handling::HandleErrorLayer, http::{header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE}, HeaderValue, Method, StatusCode}, response::IntoResponse, routing::get, BoxError, Json, Router
 };
 use tokio::sync::broadcast;
 use tower::{buffer::BufferLayer, limit::RateLimitLayer, ServiceBuilder};
-use tower_http::cors::{Any, CorsLayer};
+use tower_http::cors::CorsLayer;
 use std::time::Duration;
 use serde::Serialize;
 use sqlx::PgPool;
@@ -46,7 +42,7 @@ async fn main() {
     .allow_headers([AUTHORIZATION, ACCEPT, CONTENT_TYPE]);
 
     // print Starting server on address:port
-    println!("Lynix API v1.0.0 - Dufferin (Rust)");
+    println!("Lynix API v1.1.17 - Dufferin (Rust)");
     println!("---------------------------------");
     println!("🐺 Starting server on {}:{}", config.server_host, config.server_port);
 
@@ -119,7 +115,7 @@ async fn handler_404() -> impl IntoResponse {
 // basic handler that responds with a static string
 async fn root() -> Json<RootVersion> {
     Json(RootVersion {
-        version: "lynixapi-v1.0.0-rs".to_string(),
+        version: "lynixapi-v1.1.17-rs".to_string(),
         status: "ok".to_string(),
         codename: "dufferin".to_string(),
     })
