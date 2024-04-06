@@ -24,3 +24,9 @@ pub struct UserResponse {
     pub status: String,
     pub data: UserData,
 }
+
+#[derive(Serialize, Debug)]
+pub struct ChangePasswordSchema {
+    pub old_password: String,
+    pub new_password: String,
+}
