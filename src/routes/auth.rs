@@ -122,6 +122,7 @@ pub async fn login_user_handler(
     ))
     .path("/")
     .max_age(time::Duration::minutes(data.env.access_token_max_age * 60))
+    .domain(".lynix.ca")
     .same_site(SameSite::Lax)
     .http_only(true);
 
@@ -131,12 +132,14 @@ pub async fn login_user_handler(
     ))
     .path("/")
     .max_age(time::Duration::minutes(data.env.refresh_token_max_age * 60))
+    .domain(".lynix.ca")
     .same_site(SameSite::Lax)
     .http_only(true);
 
     let logged_in_cookie = Cookie::build(("logged_in", "true"))
         .path("/")
         .max_age(time::Duration::minutes(data.env.access_token_max_age * 60))
+        .domain(".lynix.ca")
         .same_site(SameSite::Lax)
         .http_only(false);
 
