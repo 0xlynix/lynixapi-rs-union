@@ -348,7 +348,7 @@ pub async fn logout_handler(
         .map_err(|e| {
             let error_response = serde_json::json!({
                 "status": "error",
-                "message": format!("Redis error: {}", e),
+                "message": format!("Dragonfly error: {}", e),
             });
             (StatusCode::INTERNAL_SERVER_ERROR, Json(error_response))
         })?;
