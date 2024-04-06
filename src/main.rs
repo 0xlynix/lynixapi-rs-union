@@ -5,7 +5,7 @@ use axum::{
     extract::{
         ws::{Message, WebSocket, WebSocketUpgrade},
         State,
-    }, http::{Method, StatusCode}, response::IntoResponse, routing::get, BoxError, Json, Router
+    }, http::{header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE}, HeaderValue, Method, StatusCode}, response::IntoResponse, routing::get, BoxError, Json, Router
 };
 use tokio::sync::broadcast;
 use tower::{buffer::BufferLayer, limit::RateLimitLayer, ServiceBuilder};
@@ -17,7 +17,7 @@ use redis::Client;
 
 use crate::config::Config;
 
-
+mod auth;
 mod routes;
 mod dtypes;
 mod config;
@@ -40,10 +40,10 @@ async fn main() {
 
     // Cors
     let cors = CorsLayer::new()
-    // allow `GET` and `POST` when accessing the resource
-    .allow_methods([Method::GET, Method::POST])
-    // allow requests from any origin
-    .allow_origin(Any);
+    .allow_origin("https://lynix.ca".parse::<HeaderValue>().unwrap())
+    .allow_methods([Method::GET, Method::POST, Method::PATCH, Method::DELETE])
+    .allow_credentials(true)
+    .allow_headers([AUTHORIZATION, ACCEPT, CONTENT_TYPE]);
 
     // print Starting server on address:port
     println!("Lynix API v1.0.0 - Dufferin (Rust)");
