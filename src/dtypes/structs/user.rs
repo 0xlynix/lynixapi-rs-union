@@ -2,28 +2,33 @@ use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[derive(Serialize, Deserialize, sqlx::FromRow)]
-pub enum Role {
-    System,
-    Admin,
-    User,
-}
-
-#[derive(Serialize, Deserialize, sqlx::FromRow)]
+#[allow(non_snake_case)]
+#[derive(Debug, Deserialize, sqlx::FromRow, Serialize, Clone)]
 pub struct User {
-    /*  Identifiers */
+
     pub id: Uuid,
 
-    /* Metadata */
-    pub profile_image: Option<String>,
     pub username: String,
-    pub email: Option<String>,
+    pub email: String,
     pub password: String,
-    pub role: Role,
+    pub photo: String,
+    pub verified: bool,
+    pub role: String,
 
     pub is_furry: bool,
 
-    /* Dates */
     pub created_at: Option<chrono::DateTime<Utc>>,
-    pub disabled_at: Option<chrono::DateTime<Utc>>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct LoginUserSchema {
+    pub username: String,
+    pub password: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RegisterUserSchema {
+    pub username: String,
+    pub password: String,
+    pub is_furry: bool,
 }

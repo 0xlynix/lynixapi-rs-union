@@ -1,20 +1,28 @@
 use std::sync::Arc;
 
 use axum::{
-    error_handling::HandleErrorLayer, http::{Method, StatusCode}, response::IntoResponse, routing::get, BoxError, Json, Router
+    error_handling::HandleErrorLayer, http::{header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE}, HeaderValue, Method, StatusCode}, response::IntoResponse, routing::get, BoxError, Json, Router
 };
+use tokio::sync::broadcast;
 use tower::{buffer::BufferLayer, limit::RateLimitLayer, ServiceBuilder};
-use tower_http::cors::{Any, CorsLayer};
+use tower_http::cors::CorsLayer;
 use std::time::Duration;
 use serde::Serialize;
 use sqlx::PgPool;
+use redis::Client;
 
+use crate::config::Config;
 
+mod auth;
 mod routes;
 mod dtypes;
+mod config;
 
 pub struct AppState {
+    env: Config,
     db: PgPool,
+    redis_client: Client,
+    tx: broadcast::Sender<String>,
 }
 
 #[tokio::main]
@@ -24,28 +32,24 @@ async fn main() {
 
     // load our environment variables
     dotenv::dotenv().ok();
-
-    let server_address =
-        std::env::var("SERVER_ADDRESS").unwrap_or_else(|_| String::from("127.0.0.1"));
-    let server_port = std::env::var("SERVER_PORT").unwrap_or_else(|_| String::from("8080"));
+    let config = Config::init();
 
     // Cors
     let cors = CorsLayer::new()
-    // allow `GET` and `POST` when accessing the resource
-    .allow_methods([Method::GET, Method::POST])
-    // allow requests from any origin
-    .allow_origin(Any);
+    .allow_origin("https://lynix.ca".parse::<HeaderValue>().unwrap())
+    .allow_methods([Method::GET, Method::POST, Method::PATCH, Method::DELETE])
+    .allow_credentials(true)
+    .allow_headers([AUTHORIZATION, ACCEPT, CONTENT_TYPE]);
 
     // print Starting server on address:port
-    println!("Lynix API v1.0.0 - Dufferin (Rust)");
+    println!("Lynix API v1.1.17 - Dufferin (Rust)");
     println!("---------------------------------");
-    println!("🐺 Starting server on {}:{}", server_address, server_port);
+    println!("🐺 Starting server on {}:{}", config.server_host, config.server_port);
 
-    let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must set");
-    let pool = match PgPool::connect(&database_url).await
+    let pool = match PgPool::connect(&config.database_url).await
     {
         Ok(pool) => {
-            println!("✅ Connection to the database is successful!");
+            println!("✅ Connection to the Database is successful!");
             pool
         }
         Err(err) => {
@@ -54,12 +58,32 @@ async fn main() {
         }
     };
 
-    let app_state = Arc::new(AppState { db: pool });
+    let redis_client = match Client::open(config.redis_url.to_owned()) {
+        Ok(client) => {
+            println!("✅ Connection to the Redis is successful!");
+            client
+        }
+        Err(e) => {
+            println!("🔥 Error connecting to Redis: {}", e);
+            std::process::exit(1);
+        }
+    };
+
+    let (tx, _rx) = broadcast::channel(1000);
+
+    let app_state = Arc::new(AppState {
+        env: config.clone(),
+        redis_client: redis_client.clone(),
+        db:pool, 
+        tx 
+    });
 
     // build our application with a route
     let app = Router::new()
         // `GET /` goes to `root`
         .route("/", get(root))
+        .nest("/", routes::websockets::routes(app_state.clone()))
+        .nest("/v1", routes::auth::routes(app_state.clone()))
         .nest("/v1", routes::blog::routes(app_state.clone()))
         .nest("/v1", routes::boop::routes(app_state.clone()))
         .fallback(handler_404)
@@ -76,7 +100,7 @@ async fn main() {
         ).layer(cors);
 
     // run our app with hyper, listening globally on port 3000
-    let listener = tokio::net::TcpListener::bind(format!("{}:{}", server_address, server_port)).await.unwrap();
+    let listener = tokio::net::TcpListener::bind(format!("{}:{}", config.server_host, config.server_port)).await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }
 
@@ -91,7 +115,7 @@ async fn handler_404() -> impl IntoResponse {
 // basic handler that responds with a static string
 async fn root() -> Json<RootVersion> {
     Json(RootVersion {
-        version: "lynixapi-v1.0.0-rs".to_string(),
+        version: "lynixapi-v1.1.17-rs".to_string(),
         status: "ok".to_string(),
         codename: "dufferin".to_string(),
     })

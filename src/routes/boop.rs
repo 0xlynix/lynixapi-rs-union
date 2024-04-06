@@ -7,7 +7,7 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
-use axum_macros::debug_handler;
+//use axum_macros::debug_handler;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use uuid::Uuid;
@@ -73,7 +73,7 @@ async fn get_boops_by_event(
     (StatusCode::OK, count.to_string())
 }
 
-#[debug_handler]
+//#[debug_handler]
 async fn create_boop(
     State(data): State<Arc<AppState>>,
     Json(body): Json<CreateBoop>,
