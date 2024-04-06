@@ -87,6 +87,7 @@ async fn main() {
         // `GET /` goes to `root`
         .route("/", get(root))
         .nest("/", routes::websockets::routes(app_state.clone()))
+        .nest("/v1", routes::auth::routes(app_state.clone()))
         .nest("/v1", routes::blog::routes(app_state.clone()))
         .nest("/v1", routes::boop::routes(app_state.clone()))
         .fallback(handler_404)

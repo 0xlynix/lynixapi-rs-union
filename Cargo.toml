@@ -26,6 +26,7 @@ chrono = {version = "0.4.28", features = ["serde"]}
 redis = { version = "0.25.3", features = ["tokio-comp"] }
 base64 = "0.22.0"
 jsonwebtoken = "9.3.0"
+argon2 = "0.5.3"
 
 # Swagger UI
 # utoipa = { version = "4.2.0", features = ["actix_extras", "chrono"] }
