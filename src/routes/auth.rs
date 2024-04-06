@@ -508,7 +508,7 @@ async fn save_token_data_to_redis(
         .map_err(|e| {
             let error_response = serde_json::json!({
                 "status": "error",
-                "message": format!("Redis error: {}", e),
+                "message": format!("Dragonfly error: {}", e),
             });
             (StatusCode::INTERNAL_SERVER_ERROR, Json(error_response))
         })?;
